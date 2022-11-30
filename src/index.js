@@ -2,12 +2,10 @@ import './css/styles.css';
 import Notiflix from 'notiflix';
 import axios from 'axios';
 
-// // <div class="photo-card"> <img src="" alt="" loading="lazy" /><div class="info"><p class="info-item"> <b>Likes</b></p><p class="info-item"><b>Views</b></p><p class="info-item"><b>Comments</b></p><p class="info-item"><b>Downloads</b></p></div></div>
 const BASE_URL = 'https://pixabay.com/api/';
 const API_KEY = '31704794-60eeb3a6ac83e8d6bcf335c57';
 let page = 1;
 let searchImg = '';
-const totalHits = '';
 
 const { searchForm, gallery, loadMore } = {
   searchForm: document.querySelector('#search-form'),
@@ -21,10 +19,11 @@ loadMore.disabled = true;
 
 function onSearch(e) {
   e.preventDefault();
-  searchImg = e.currentTarget.elements.searchQuery.value;
+  searchImg = e.currentTarget.elements.searchQuery.value.trim();
   resetPage();
   imagesGalleryApi(searchImg).then(data => {
     clearGallery();
+    loadMore.disabled = false;
     if (data.hits.length === 0) {
       loadMore.disabled = true;
       return Notiflix.Notify.failure(
@@ -32,23 +31,35 @@ function onSearch(e) {
       );
     }
     gallery.insertAdjacentHTML('beforeend', createImgMarkup(data.hits));
-    Notiflix.Notify.info(`Hooray! We found ${data.totalHits} images`);
-    loadMore.disabled = false;
+    Notiflix.Notify.success(`Hooray! We found ${data.totalHits} images`);
   });
 }
 
 function onLoadMore() {
-  loadMore.disabled = true;
+  //   loadMore.disabled = true;
 
   imagesGalleryApi(searchImg).then(data => {
     gallery.insertAdjacentHTML('beforeend', createImgMarkup(data.hits));
     loadMore.disabled = false;
+    if (data.hits.length < 40) {
+      console.log(data.hits.length);
+      Notiflix.Notify.info(
+        "We're sorry, but you've reached the end of search results."
+      );
+
+      loadMore.disabled = true;
+    }
   });
 }
-
+// export const fetchPics = async (searchImg, page) => {
+//   const resp = await axios.get(
+//     `${BASE_URL}?key=${API_KEY}&q=${searchImg}&orientation=horizontal&safesearch=true&image_type=photo&per_page=40&page=${page}`
+//   );
+//   return resp.data;
+// };
 function imagesGalleryApi(searchImg) {
   return fetch(
-    `${BASE_URL}?key=${API_KEY}&q=${searchImg}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=3`
+    `${BASE_URL}?key=${API_KEY}&q=${searchImg}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=40`
   )
     .then(resp => {
       if (!resp.ok) {
