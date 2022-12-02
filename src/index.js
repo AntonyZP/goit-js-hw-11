@@ -1,17 +1,17 @@
-import './css/styles.css';
+import SimpleLightbox from 'simplelightbox';
+import 'simplelightbox/dist/simple-lightbox.min.css';
 import Notiflix from 'notiflix';
-import axios from 'axios';
-
-const BASE_URL = 'https://pixabay.com/api/';
-const API_KEY = '31704794-60eeb3a6ac83e8d6bcf335c57';
-let page = 1;
-let searchImg = '';
+import './css/styles.css';
+import { imagesGallery } from './axiosAPI';
 
 const { searchForm, gallery, loadMore } = {
   searchForm: document.querySelector('#search-form'),
   gallery: document.querySelector('.gallery'),
   loadMore: document.querySelector('.load-more'),
 };
+const simpleligthbox = new SimpleLightbox('.gallery a', { loop: false });
+let page = 1;
+let searchImg = '';
 
 searchForm.addEventListener('submit', onSearch);
 loadMore.addEventListener('click', onLoadMore);
@@ -21,56 +21,38 @@ function onSearch(e) {
   e.preventDefault();
   searchImg = e.currentTarget.elements.searchQuery.value.trim();
   resetPage();
-  imagesGalleryApi(searchImg).then(data => {
-    clearGallery();
-    loadMore.disabled = false;
-    if (data.hits.length === 0) {
-      loadMore.disabled = true;
-      return Notiflix.Notify.failure(
-        'Sorry, there are no images matching your search query. Please try again.     '
-      );
-    }
-    gallery.insertAdjacentHTML('beforeend', createImgMarkup(data.hits));
-    Notiflix.Notify.success(`Hooray! We found ${data.totalHits} images`);
-  });
-}
-
-function onLoadMore() {
-  //   loadMore.disabled = true;
-
-  imagesGalleryApi(searchImg).then(data => {
-    gallery.insertAdjacentHTML('beforeend', createImgMarkup(data.hits));
-    loadMore.disabled = false;
-    if (data.hits.length < 40) {
-      console.log(data.hits.length);
-      Notiflix.Notify.info(
-        "We're sorry, but you've reached the end of search results."
-      );
-
-      loadMore.disabled = true;
-    }
-  });
-}
-// export const fetchPics = async (searchImg, page) => {
-//   const resp = await axios.get(
-//     `${BASE_URL}?key=${API_KEY}&q=${searchImg}&orientation=horizontal&safesearch=true&image_type=photo&per_page=40&page=${page}`
-//   );
-//   return resp.data;
-// };
-function imagesGalleryApi(searchImg) {
-  return fetch(
-    `${BASE_URL}?key=${API_KEY}&q=${searchImg}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=40`
-  )
+  imagesGallery(searchImg)
     .then(resp => {
-      if (!resp.ok) {
-        throw new Error(resp.statusText);
+      if (resp.data.hits.length < 1) {
+        Notiflix.Notify.failure(
+          'Sorry, there are no images matching your search query. Please try again.     '
+        );
+        loadMore.disabled = true;
+        clearGallery();
+        throw new Error();
       }
-      page += 1;
-      return resp.json();
+      clearGallery();
+      loadMore.disabled = false;
+      gallery.insertAdjacentHTML('beforeend', createImgMarkup(resp.data.hits));
+      Notiflix.Notify.success(`Hooray! We found ${resp.data.totalHits} images`);
     })
     .catch(err => {
       console.log(err);
-    });
+    })
+    .then(() => simpleligthbox.refresh());
+}
+
+function onLoadMore(e) {
+  imagesGallery(searchImg, (page += 1)).then(resp => {
+    gallery.insertAdjacentHTML('beforeend', createImgMarkup(resp.data.hits));
+    loadMore.disabled = false;
+    if (resp.data.hits.length < 40) {
+      Notiflix.Notify.info(
+        "We're sorry, but you've reached the end of search results."
+      );
+      loadMore.disabled = true;
+    }
+  });
 }
 
 function createImgMarkup(arr) {
@@ -86,7 +68,27 @@ function createImgMarkup(arr) {
         comments,
         downloads,
       }) =>
-        `<div class="photo-card"> <img src="${webformatURL}" alt="${tags}" width = 70px loading="lazy" /><div class="info"><p class="info-item"> <b>Likes ${likes}</b></p><p class="info-item"><b>Views ${views}</b></p><p class="info-item"><b>Comments ${comments}</b></p><p class="info-item"><b>Downloads ${downloads}</b></p></div></div>`
+        `<div class="photo-card"><div class="thumb"><a class="gallery-item" href="${largeImageURL}">
+        <img src="${webformatURL}" alt="${tags}" loading="lazy" /></a></div>
+        <div class="info">
+          <p class="info-item">
+            <b>Likes</b>
+            <span>${likes}</span>
+          </p>
+          <p class="info-item">
+            <b>Views</b>
+            <span>${views}</span>
+          </p>
+          <p class="info-item">
+            <b>Comments</b>
+            <span>${comments}</span>
+          </p>
+          <p class="info-item">
+            <b>Downloads</b>
+            <span>${downloads}</span>
+          </p>
+        </div>
+      </div>`
     )
     .join('');
 }
